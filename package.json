@@ -24,8 +24,8 @@
     "url": "git+https://github.com/troyanskiy/ngx-resource-core.git"
   },
   "main": "bundles/core.umd.js",
-  "module": "index.js",
-  "typings": "index.d.ts",
+  "module": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "author": "Roman Rosluk <roma@redbox.by>",
   "license": "MIT",
   "bugs": {
