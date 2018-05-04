@@ -23,7 +23,7 @@
     "type": "git",
     "url": "git+https://github.com/troyanskiy/ngx-resource-core.git"
   },
-  "main": "bundles/core.umd.js",
+  "main": "dist/bundles/core.umd.js",
   "module": "dist/index.js",
   "typings": "dist/index.d.ts",
   "author": "Roman Rosluk <roma@redbox.by>",
