@@ -3,10 +3,10 @@ import { ResourceAction } from '../ResourceAction';
 import { IResourceMethod, ResourceRequestMethod } from '../Declarations';
 
 
-export abstract class ResourceCRUD<TQuery, TShort, TFull> extends Resource {
+export abstract class ResourceCRUD<TQuery, TShort, TFull, TQueryResult = TShort[]> extends Resource {
 
   @ResourceAction()
-  query: IResourceMethod<TQuery, TShort[]>;
+  query: IResourceMethod<TQuery, TQueryResult>;
 
   @ResourceAction({
     path: '/{!id}'
@@ -26,9 +26,15 @@ export abstract class ResourceCRUD<TQuery, TShort, TFull> extends Resource {
 
   @ResourceAction({
     method: ResourceRequestMethod.Delete,
-    path: '/{!id}'
+    path: '/{!:id}'
   })
   remove: IResourceMethod<{ id: any }, any>;
+
+  @ResourceAction({
+    method: ResourceRequestMethod.Patch,
+    path: '/{!id}'
+  })
+  patch: IResourceMethod<{ id: any } & Partial<TFull>, TFull>;
 
   // Alias to save
   create(data: TFull, callback?: (res: TFull) => any): Promise<TFull> {

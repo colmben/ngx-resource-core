@@ -282,6 +282,11 @@ export class Resource {
       options.returnData.$resolved = true;
     }
 
+    if (options.actionOptions.asResourceResponse) {
+      resp.body = body;
+      body = resp;
+    }
+
     if (options.actionAttributes.onSuccess) {
       options.actionAttributes.onSuccess(body);
     }
@@ -399,28 +404,37 @@ export class Resource {
 
       if (realBodyType === ResourceRequestBodyType.JSON) {
 
-        switch (options.actionOptions.requestBodyType) {
+        if (options.actionOptions.requestBodyType === ResourceRequestBodyType.FORM_DATA) {
 
-          case ResourceRequestBodyType.FORM_DATA:
+          const newBody = new FormData();
 
-            const newBody = new FormData();
+          Object.keys(body).forEach((key: string) => {
 
-            Object.keys(body).forEach((key: string) => {
+            const value = body[key];
 
-              const value = body[key];
+            if (body.hasOwnProperty(key) && typeof value !== 'function') {
 
-              if (body.hasOwnProperty(key) && typeof value !== 'function') {
-                let fileName: string;
-                if (value instanceof File) {
-                  fileName = (value as File).name;
-                }
+              const isArrayOfFiles = value instanceof Array && value.reduce((acc, elem) => acc && elem instanceof File, true);
 
-                newBody.append(key, value, fileName);
+              if (isArrayOfFiles) {
+                value.forEach((f: File, index: number) => {
+                  newBody.append(`${key}[${index}]`, f, (f as File).name);
+                });
+              } else if (value instanceof File) {
+                newBody.append(key, value, (value as File).name);
+              } else if (!options.actionOptions.rootNode) {
+                newBody.append(key, value);
               }
+            }
 
-            });
+          });
 
-            bodyOk = true;
+          if (options.actionOptions.rootNode) {
+            newBody.append(options.actionOptions.rootNode, JSON.stringify(body));
+          }
+
+          body = newBody;
+          bodyOk = true;
 
         }
 
@@ -432,17 +446,22 @@ export class Resource {
       throw new Error('Can not convert body');
     }
 
+    if (!(body instanceof FormData)) {
+      // Add root node if needed
+      if (options.actionOptions.rootNode) {
+        const newBody: any = {};
+        newBody[options.actionOptions.rootNode] = body;
+        body = newBody;
+      }
 
-    // Add root node if needed
-    if (options.actionOptions.rootNode) {
-      const newBody: any = {};
-      newBody[options.actionOptions.rootNode] = body;
-      body = newBody;
-    }
 
-
-    if (typeof body === 'object' && Object.keys(body).length === 0 && !options.actionOptions.keepEmptyBody) {
+      if ((options.actionOptions.requestBodyType === ResourceRequestBodyType.NONE ||
+        (options.actionOptions.requestBodyType === ResourceRequestBodyType.JSON &&
+        typeof body === 'object' && Object.keys(body).length === 0)
+    ) && !options.actionOptions.keepEmptyBody) {
       return;
+      }
+
     }
 
     options.requestOptions.body = body;
@@ -511,7 +530,8 @@ export class Resource {
             query[key] = value;
 
           }
-          break;
+
+          return;
 
         case ResourceQueryMappingMethod.Bracket:
           /// Convert object and arrays to query params
@@ -520,7 +540,8 @@ export class Resource {
               this.$appendQueryParams(query, `${key}[${k}]`, value[k], queryMappingMethod);
             }
           }
-          break;
+
+          return;
 
         case ResourceQueryMappingMethod.JQueryParamsBracket:
           /// Convert object and arrays to query params according to $.params
@@ -534,9 +555,10 @@ export class Resource {
             }
           }
 
+          return;
+
       }
 
-      return;
     }
 
     query[key] = value;
@@ -611,6 +633,10 @@ export class Resource {
 
     if (ResourceHelper.isNullOrUndefined(actionOptions.asPromise)) {
       actionOptions.asPromise = ResourceGlobalConfig.asPromise;
+    }
+
+    if (ResourceHelper.isNullOrUndefined(actionOptions.asResourceResponse)) {
+      actionOptions.asResourceResponse = ResourceGlobalConfig.asResourceResponse;
     }
 
     if (ResourceHelper.isNullOrUndefined(actionOptions.responseBodyType)) {

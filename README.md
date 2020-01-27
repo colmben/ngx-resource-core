@@ -1,6 +1,9 @@
 [![npm version](https://img.shields.io/npm/v/%40ngx-resource%2Fcore.svg)](https://www.npmjs.com/package/@ngx-resource/core)
 
 # @ngx-resource/core
+
+Repository is moved to https://github.com/troyanskiy/ngx-resource
+
 Resource Core is an evolution of ngx-resource lib which provides flexibility for developers. Each developer can implement their own request handlers to easily customize the behavior.
 In fact, `@ngx-resource/core` is an abstract common library which uses `ResourceHandler` to make requests, so it's even possible to use the lib on node.js server side with typescript. You just need to implement a `ResourceHandler` for it.
 
@@ -60,6 +63,12 @@ export class UserResource extends Resource {
   })
   createUser: IResourceMethodStrict<IUser, IUserQuery, IUserPathParams, IUser>;
   
+  @ResourceAction({
+    path: '/test/data',
+    asResourceResponse: true
+  })
+  testUserRequest: IResourceMethodFull<{id: string}, IUser>; // will call /test/data and receive repsponse object with headers, status and body
+  
   constructor(restHandler: ResourceHandler) {
     super(restHandler);
   }
@@ -112,6 +121,7 @@ List of params:
 * `lean?: boolean;` - do no add `$` properties on result. Used only with `toPromise: false` *default `false`*
 * `mutateBody?: boolean;` - if need to mutate provided body with response body. *default `false`*
 * `asPromise?: boolean;` - if method should return promise or object, which will be fullfilled after receiving response. *default `true`*
+* `asResourceResponse?: boolean;` - Receive `IResourceResponse` as a body . *default `false`*
 * `keepEmptyBody?: boolean;` - if need to keep empty body object `{}`
 * `requestBodyType?: ResourceRequestBodyType;` - request body type. *default: will be detected automatically*.
 Check for possible body types in the sources of [ResourceRequestBodyType](https://github.com/troyanskiy/ngx-resource-core/blob/master/src/Declarations.ts#L114-L122). Type detection algorithm [check here](https://github.com/troyanskiy/ngx-resource-core/blob/master/src/ResourceHelper.ts#L12-L34).
@@ -311,3 +321,96 @@ Output: `?a[0][b]=10383&a[0][c][]=2&a[0][c][]=3`
 ## Developing Resource Handler
 
 Use the [`ResourceHandler`](https://github.com/troyanskiy/ngx-resource-core/blob/master/src/ResourceHandler.ts) abstract class as parent to create your Handler. Check the sources of the class for the methods to implement.
+
+## Unit testing of the Resource with Angular
+
+#### auth.resource.ts
+```typescript
+
+@ResourceParams({
+  pathPrefix: '/api/auth'
+})
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthResource extends Resource {
+
+  @ResourceAction({
+    path: '/profile'
+  })
+  getProfile: IResourceMethod<void, IUserProfile>;
+
+  @ResourceAction({
+    path: '/login',
+    method: ResourceRequestMethod.Post
+  })
+  login: IResourceMethod<{ username: string, password: string }, void>;
+
+
+  constructor(resourceHandler: ResourceHandler) {
+    super(resourceHandler);
+  }
+
+}
+```
+
+#### auth.resource.spec.ts
+```typescript
+
+describe('AuthResource', () => {
+
+  let httpTestingController: HttpTestingController;
+  let authResource: AuthResource;
+
+  beforeEach(() => {
+
+    TestBed.configureTestingModule({
+      imports: [
+        HttpClientTestingModule,
+        ResourceModule.forRoot()
+      ]
+    });
+
+    httpTestingController = TestBed.get(HttpTestingController);
+    authResource = TestBed.get(AuthResource);
+
+
+  });
+
+  afterEach(() => {
+    httpTestingController.verify();
+  });
+
+  it('should be created', () => {
+    expect(authResource).toBeTruthy();
+  });
+
+  it('should call to get profile', (done: DoneFn) => {
+
+    const profileData = {
+      firstName: 'Hello',
+      lastName: 'World',
+      email: 'hello@world.com',
+      language: 'en'
+    } as IUserProfile;
+
+    authResource.getProfile()
+      .then(profile => {
+        expect(profile.lastName).toBe('World');
+      });
+
+    setTimeout(() => {
+      const req = httpTestingController.expectOne('/api/auth/profile');
+
+      expect(req.request.method).toEqual('GET');
+
+      req.flush(profileData);
+
+      done();
+    });
+
+  });
+
+});
+
+```
